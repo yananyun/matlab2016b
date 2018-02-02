@@ -1,0 +1,152 @@
+OpenCV卷积运算
+
+
+在对数字图像进行处理时，我们一般都会在空间域（spatial domain）或者频域（frequency domain）中进行。所谓“空间域”，实际上指的是图像本身，在空间域上的操作常常是改变像素点的值，也就是经过一个映射（我们所做的变换，如滤波等），将原来的f(x,y)变换为新的g(x,y)。而“频域”，它的数学基础是法国学者傅里叶提出的傅里叶级数和随后发展起来的傅里叶变换。在这其中起到重要作用的，就是电子计算机的不断完善和快速傅里叶变换（FFT）算法的提出。这些使得傅里叶变换成为了一中有力的分析和变换工具。就像一列波，我们在时间上观察，每个时刻的幅值是一个时间的函数。而当我们变换角度，从频率域上去看，又会发现它是一系列正弦波的叠加，而这些正弦波的频率都会是某个基波频率的整数倍。可谓“横看成岭侧成峰”！
+在空间域的操作主要可以分为两类：第一类是所谓的“图像强度变换”（Intensity Transform），另一类是所谓的“空间域图像滤波”（Spatial Filtering）。这两者的区别主要是处理方法的不同。前者对单个像素点进行操作，例如通过阈值函数实现图形的二值化，实现灰度平均等。而后者建立在邻域（neighborhood）的概念上，讲究的是利用一个矩阵核（Kernel）对一个小区域进行操作。
+
+
+这里OpenCV主要使用后者 矩阵核  卷积
+
+
+Opencv中的CVFilter2D函数是用边缘拷贝的方式。
+
+
+采用边缘拷贝的方式
+
+void cvFilter2D( const CvArr* src, CvArr* dst,  
+                 const CvMat* kernel,  
+                 CvPoint anchor=cvPoint(-1,-1));  
+src  
+输入图像.  
+dst  
+输出图像.  
+kernel  
+卷积核, 单通道浮点矩阵. 如果想要应用不同的核于不同的通道，先用 cvSplit 函数分解图像到单个色彩通道上，然后单独处理。  
+anchor  
+核的锚点表示一个被滤波的点在核内的位置。 锚点应该处于核内部。缺省值 (-1,-1) 表示锚点在核中心。  
+函数 cvFilter2D 对图像进行线性滤波，支持 In-place 操作。当核运算部分超出输入图像时，函数从最近邻的图像内部象素差值得到边界外面的象素值。  
+
+#include<opencv2\opencv.hpp>    
+using namespace cv;  
+using namespace std;  
+  
+//打印  
+void ShowMat(CvMat *m)  
+{  
+    int i, j;  
+    for (i = 0; i<m->rows; i++)  
+    {  
+        for (j = 0; j<m->cols; j++)  
+        {  
+            double ImgPixelVal = cvGetReal2D(m, i, j);  
+            cout << ImgPixelVal << "  ";  
+        }  
+        cout << endl;  
+    }  
+  
+}  
+int main()  
+{  
+    //卷积核  
+    float  A[] = {   
+        1.0, 2.0, 3.0,  
+        4.0,  5.0,  6.0,  
+        -1.0,  -2.0,  -1.0 };  
+    float B[] = {  
+        9,8,7,  
+        4,5,6,  
+        7,8,9         
+    };  
+    CvMat Ma = cvMat(3, 3, CV_32FC1, A);//核矩阵  
+    cout << "卷积核" << endl;  
+    ShowMat(&Ma);  
+    cout << endl;  
+    CvMat Mb = cvMat(3, 3, CV_32FC1, B);//输入  
+    //原矩阵  
+    cout << "原矩阵" << endl;  
+    ShowMat(&Mb);  
+    cout << endl;  
+  
+    CvMat *C = cvCreateMat(3, 3, CV_32FC1);  
+    cvFilter2D(&Mb, C, &Ma, cvPoint(1, 1));  
+    //输出后  
+    cout << "卷积后" << endl;  
+    ShowMat(C);  
+    cout << endl;  
+} 
+
+
+
+
+
+
+
+结论：
+1.Opencv中，卷积核不会进行180°的旋转
+2.CvFilter2D是边缘拷贝，通过边缘拷贝补全矩阵进行计算。
+
+
+http://blog.csdn.net/qq_32846595/article/details/79057040
+
+
+2）卷积边界
+cvCopyMakeBorder函数可以复制图像并制作边界，将特定图像轻微变大，然后以各种方式自动填充图像边界，
+当 Bordertype=IPL_BORDER_REPLICATE时，原始图像边缘的行和列被复制到大图像的边缘，当 Bordertype=IPL_BORDER_CONSTANT时，有一个像素宽的黑色边界。
+
+void cvCopyMakeBorder( const CvArr* src, CvArr* dst,
+  CvPoint offset, int bordertype,
+  CvScalar value=cvScalarAll(0) );
+src
+输入图像。
+dst
+输出图像。
+offset：
+输入图像（或者其ROI）欲拷贝到的输出图像长方形的左上角坐标（或者左下角坐标，如果以左下角为原点）。
+长方形的尺寸要和原图像的尺寸的ROI分之一匹配。将源图像的副本放到目标图像中的位置。
+bordertype
+已拷贝的原图像长方形的边界的类型：
+IPL_BORDER_CONSTANT - 填充边界为固定值，值由函数最后一个参数指定。
+IPL_BORDER_REPLICATE -边界用上下行或者左右列来复制填充。
+（其他两种IPL边界类型， IPL_BORDER_REFLECT 和IPL_BORDER_WRAP现已不支持）。
+value
+如果边界类型为IPL_BORDER_CONSTANT的话，那么此为边界像素的值。函数cvCopyMakeBorder拷贝输入2
+维阵列到输出阵列的内部并且在拷贝区域的周围制作一个指定类型的边界。函数可以用来模拟和嵌入在指定算法
+实现中的边界不同的类型。例如：和opencv中大多数其他滤波函数一样，一些形态学函数内部使用复制边界类
+型，但是用户可能需要零边界或者填充为1或255的边界。
+
+
+
+
+filter2D函数的功能是：Convolves an image with the kernel，即如何实现图像的卷积运算。其函数原型如下：
+void filter2D(InputArray src, OutputArray dst, int ddepth, InputArray kernel, Point anchor=Point(-1,-1), double delta=0, int borderType=BORDER_DEFAULT )，
+
+InputArray src: 输入图像
+
+OutputArray dst: 输出图像，和输入图像具有相同的尺寸和通道数量
+
+int ddepth: 目标图像深度，如果没写将生成与原图像深度相同的图像。原图像和目标图像支持的图像深度
+
+期望的目标图像类型
+
+当ddepth输入值为-1时，目标图像和原图像深度保持一致。
+
+InputArray kernel: 卷积核（或者是相关核）,一个单通道浮点型矩阵。如果想在图像不同的通道使用不同的kernel，可以先使用split()函数将图像通道事先分开。
+
+
+Point anchor: 内核的基准点(anchor)，其默认值为(-1,-1)说明位于kernel的中心位置。基准点即kernel中与进行处理的像素点重合的点。
+
+double delta: 在储存目标图像前可选的添加到像素的值，默认值为0
+
+int borderType: 像素向外逼近的方法，默认值是BORDER_DEFAULT,即对全部边界进行计算。
+
+该函数使用于任意线性滤波器的图像，支持就地操作。当其中心移动到图像外，函数可以根据指定的边界模式进行插值运算。函数实质上是计算kernel与图像的相关性而不是卷积
+
+也就是说kernel并不是中心点的镜像，如果需要一个正真的卷积，使用函数flip()并将中心点设置为(kernel.cols - anchor.x - 1, kernel.rows - anchor.y -1). 
+该函数在大核(11x11或更大)的情况下使用基于DFT的算法，而在小核情况下使用直接算法(使用createLinearFilter()检索得到). 
+
+
+
+
+
+未完待续
+
